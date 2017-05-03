@@ -143,15 +143,18 @@ def splitBlocks(s, block_size = 16):
 	return [s[block_size*i:block_size*(i + 1)] for i in range(len(s)/block_size)]
 
 def encrypt_ecb(message, key, pad=add_pkcs7_padding):
+	'''pads message using specified padding scheme (pkcs7 by default) and then encrypts with key'''
 	#TODO: add padding
 	w = keyExpansion(key)
 	return ''.join([encrypt(block, w) for block in splitBlocks(pad(message))])
 
 def decrypt_ecb(message, key, unpad=remove_pkcs7_padding):
+	'''decryptes message and removes padding'''
 	w = keyExpansion(key)
 	return unpad(''.join([decrypt(block, w) for block in splitBlocks(message)]))
 
 def encrypt_cbc(message, key, iv, pad=add_pkcs7_padding):
+	'''encrypts message in cbc mode and returns iv as part of ciphertext'''
 	w = keyExpansion(key)
 	ct_blocks = [iv]
 
@@ -161,6 +164,7 @@ def encrypt_cbc(message, key, iv, pad=add_pkcs7_padding):
 	return ''.join(ct_blocks)
 
 def decrypt_cbc(message, key, unpad=remove_pkcs7_padding):
+	'''note: assumes iv is first block of ciphertext'''
 	w = keyExpansion(key)
 	assert(len(message) % 16 == 0 and len(message) >= 2*16)
 	ct_blocks = splitBlocks(message)
@@ -180,6 +184,12 @@ def test_cbc():
 		ct = encrypt_cbc('a'*i, key, iv)
 		assert(ct[:16] == iv)
 		assert(decrypt_cbc(ct, key) == 'a'*i)
+	#test for 192 bit key
+	key = 'c'*(192/8)
+	ct = encrypt_cbc('a'*i, key, iv)
+	assert(ct[:16] == iv)
+	assert(decrypt_cbc(ct, key) == 'a'*i)
+	
 
 def test_pkcs7_padding():
 	assert(add_pkcs7_padding('') == '\x10'*16)
