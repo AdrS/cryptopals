@@ -3,9 +3,12 @@
 #based off of FIPS pseudocode http://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.197.pdf
 #test vectors for FIPS spec
 
-def numRounds(key_len):
-	'''returns number of rounds for given key length'''
-	return 10 + ((key_len - 16) >> 2)
+def numRounds(key_len, expanded=False):
+	'''returns number of rounds for given key'''
+	if expanded:
+		return key_len/16 - 1
+	else:
+		return 10 + ((key_len - 16) >> 2)
 
 def subBytes(state):
 	lookup_table = '\x63\x7c\x77\x7b\xf2\x6b\x6f\xc5\x30\x01\x67\x2b\xfe\xd7\xab\x76\xca\x82\xc9\x7d\xfa\x59\x47\xf0\xad\xd4\xa2\xaf\x9c\xa4\x72\xc0\xb7\xfd\x93\x26\x36\x3f\xf7\xcc\x34\xa5\xe5\xf1\x71\xd8\x31\x15\x04\xc7\x23\xc3\x18\x96\x05\x9a\x07\x12\x80\xe2\xeb\x27\xb2\x75\x09\x83\x2c\x1a\x1b\x6e\x5a\xa0\x52\x3b\xd6\xb3\x29\xe3\x2f\x84\x53\xd1\x00\xed\x20\xfc\xb1\x5b\x6a\xcb\xbe\x39\x4a\x4c\x58\xcf\xd0\xef\xaa\xfb\x43\x4d\x33\x85\x45\xf9\x02\x7f\x50\x3c\x9f\xa8\x51\xa3\x40\x8f\x92\x9d\x38\xf5\xbc\xb6\xda\x21\x10\xff\xf3\xd2\xcd\x0c\x13\xec\x5f\x97\x44\x17\xc4\xa7\x7e\x3d\x64\x5d\x19\x73\x60\x81\x4f\xdc\x22\x2a\x90\x88\x46\xee\xb8\x14\xde\x5e\x0b\xdb\xe0\x32\x3a\x0a\x49\x06\x24\x5c\xc2\xd3\xac\x62\x91\x95\xe4\x79\xe7\xc8\x37\x6d\x8d\xd5\x4e\xa9\x6c\x56\xf4\xea\x65\x7a\xae\x08\xba\x78\x25\x2e\x1c\xa6\xb4\xc6\xe8\xdd\x74\x1f\x4b\xbd\x8b\x8a\x70\x3e\xb5\x66\x48\x03\xf6\x0e\x61\x35\x57\xb9\x86\xc1\x1d\x9e\xe1\xf8\x98\x11\x69\xd9\x8e\x94\x9b\x1e\x87\xe9\xce\x55\x28\xdf\x8c\xa1\x89\x0d\xbf\xe6\x42\x68\x41\x99\x2d\x0f\xb0\x54\xbb\x16'
@@ -67,8 +70,8 @@ def printHex(s):
 
 def string2bytes(s):
 	return [c for c in s]
-
 def keyExpansion(key):
+	key = string2bytes(key)
 	rcon = [['\x8d','\0','\0','\0'] , ['\x01','\0','\0','\0'] , ['\x02','\0','\0','\0'] , ['\x04','\0','\0','\0'] , ['\x08','\0','\0','\0'] , ['\x10','\0','\0','\0'] , ['\x20','\0','\0','\0'] , ['\x40','\0','\0','\0'] , ['\x80','\0','\0','\0'] , ['\x1b','\0','\0','\0'] , ['\x36','\0','\0','\0'] , ['\x6c','\0','\0','\0'] , ['\xd8','\0','\0','\0'] , ['\xab','\0','\0','\0'] , ['\x4d','\0','\0','\0'] , ['\x9a','\0','\0','\0'] , ['\x2f','\0','\0','\0'] , ['\x5e','\0','\0','\0'] , ['\xbc','\0','\0','\0'] , ['\x63','\0','\0','\0'] , ['\xc6','\0','\0','\0'] , ['\x97','\0','\0','\0'] , ['\x35','\0','\0','\0'] , ['\x6a','\0','\0','\0'] , ['\xd4','\0','\0','\0'] , ['\xb3','\0','\0','\0'] , ['\x7d','\0','\0','\0'] , ['\xfa','\0','\0','\0'] , ['\xef','\0','\0','\0'] , ['\xc5','\0','\0','\0']]
 	nk = len(key)/4
 	rounds = numRounds(len(key))
@@ -85,12 +88,10 @@ def keyExpansion(key):
 		i += 1
 	return w
 
-#TODO: make expanded key a parameter (faster when encrypted multiple blocks because key expansion only has to be computed once)
-def encrypt(pt_block, key):
-	#TODO: check if this encrypts in place
-	num_rounds = numRounds(len(key))
+def encrypt(pt_block, w):
+	'''takes plaintext block and expanded key w, returns ciphertext block'''
+	num_rounds = numRounds(len(w), True)
 	state = string2bytes(pt_block)
-	w = keyExpansion(string2bytes(key))
 
 	addRoundKey(state, w[:16])
 	for i in range(1, num_rounds):
@@ -104,11 +105,9 @@ def encrypt(pt_block, key):
 	addRoundKey(state, w[-16:])
 	return ''.join(state)
 
-def decrypt(ct_block, key):
-	#TODO: check if this decrypts in place
-	num_rounds = numRounds(len(key))
+def decrypt(ct_block, w):
+	num_rounds = numRounds(len(w), True)
 	state = string2bytes(ct_block)
-	w = keyExpansion(string2bytes(key))
 
 	addRoundKey(state, w[-16:])
 
@@ -123,19 +122,21 @@ def decrypt(ct_block, key):
 	addRoundKey(state, w[:16])
 	return ''.join(state)
 
+#TODO: add padding functions + block cipher modes
+
 def testKeyExpansion():
 	#128 bit key test
-	key = ['\x2b', '\x7e', '\x15', '\x16', '\x28', '\xae', '\xd2', '\xa6', '\xab', '\xf7', '\x15', '\x88', '\x09', '\xcf', '\x4f', '\x3c']
+	key = '\x2b\x7e\x15\x16\x28\xae\xd2\xa6\xab\xf7\x15\x88\x09\xcf\x4f\x3c'
 	exp_key = '2b7e151628aed2a6abf7158809cf4f3ca0fafe1788542cb123a339392a6c7605f2c295f27a96b9435935807a7359f67f3d80477d4716fe3e1e237e446d7a883bef44a541a8525b7fb671253bdb0bad00d4d1c6f87c839d87caf2b8bc11f915bc6d88a37a110b3efddbf98641ca0093fd4e54f70e5f5fc9f384a64fb24ea6dc4fead27321b58dbad2312bf5607f8d292fac7766f319fadc2128d12941575c006ed014f9a8c9ee2589e13f0cc8b6630ca6'.decode('hex')
 	assert(''.join(keyExpansion(key)) == exp_key)
 
 	#192 bit key test
-	key = ['\x8e', '\x73', '\xb0', '\xf7', '\xda', '\x0e', '\x64', '\x52', '\xc8', '\x10', '\xf3', '\x2b', '\x80', '\x90', '\x79', '\xe5', '\x62', '\xf8', '\xea', '\xd2', '\x52', '\x2c', '\x6b', '\x7b']
+	key = '\x8e\x73\xb0\xf7\xda\x0e\x64\x52\xc8\x10\xf3\x2b\x80\x90\x79\xe5\x62\xf8\xea\xd2\x52\x2c\x6b\x7b'
 	exp_key = '8e73b0f7da0e6452c810f32b809079e562f8ead2522c6b7bfe0c91f72402f5a5ec12068e6c827f6b0e7a95b95c56fec24db7b4bd69b5411885a74796e92538fde75fad44bb095386485af05721efb14fa448f6d94d6dce24aa326360113b30e6a25e7ed583b1cf9a27f939436a94f767c0a69407d19da4e1ec1786eb6fa64971485f703222cb8755e26d135233f0b7b340beeb282f18a2596747d26b458c553ea7e1466c9411f1df821f750aad07d753ca4005388fcc5006282d166abc3ce7b5e98ba06f448c773c8ecc720401002202'.decode('hex')
 	assert(''.join(keyExpansion(key)) == exp_key)
 
 	#256 bit key test
-	key = ['\x60', '\x3d', '\xeb', '\x10', '\x15', '\xca', '\x71', '\xbe', '\x2b', '\x73', '\xae', '\xf0', '\x85', '\x7d', '\x77', '\x81', '\x1f', '\x35', '\x2c', '\x07', '\x3b', '\x61', '\x08', '\xd7', '\x2d', '\x98', '\x10', '\xa3', '\x09', '\x14', '\xdf', '\xf4']
+	key = '\x60\x3d\xeb\x10\x15\xca\x71\xbe\x2b\x73\xae\xf0\x85\x7d\x77\x81\x1f\x35\x2c\x07\x3b\x61\x08\xd7\x2d\x98\x10\xa3\x09\x14\xdf\xf4'
 	exp_key = '603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff49ba354118e6925afa51a8b5f2067fcdea8b09c1a93d194cdbe49846eb75d5b9ad59aecb85bf3c917fee94248de8ebe96b5a9328a2678a647983122292f6c79b3812c81addadf48ba24360af2fab8b46498c5bfc9bebd198e268c3ba709e0421468007bacb2df331696e939e46c518d80c814e20476a9fb8a5025c02d59c58239de1369676ccc5a71fa2563959674ee155886ca5d2e2f31d77e0af1fa27cf73c3749c47ab18501ddae2757e4f7401905acafaaae3e4d59b349adf6acebd10190dfe4890d1e6188d0b046df344706c631e'.decode('hex')
 	assert(''.join(keyExpansion(key)) == exp_key)
 
@@ -144,7 +145,7 @@ def testEncryption():
 	pt = '\x32\x43\xf6\xa8\x88\x5a\x30\x8d\x31\x31\x98\xa2\xe0\x37\x07\x34'
 	key = '\x2b\x7e\x15\x16\x28\xae\xd2\xa6\xab\xf7\x15\x88\x09\xcf\x4f\x3c'
 	ct = '3902dc1925dc116a8409850b1dfb9732'.decode('hex')
-	c = encrypt(pt, key) 
+	c = encrypt(pt, keyExpansion(key))
 	#printHex(c)
 	#printHex(ct)
 	#assert(c == ct)
@@ -153,26 +154,26 @@ def testEncryption():
 	pt = '00112233445566778899aabbccddeeff'.decode('hex')
 	key = '000102030405060708090a0b0c0d0e0f'.decode('hex')
 	ct = '69c4e0d86a7b0430d8cdb78070b4c55a'.decode('hex')
-	assert(encrypt(pt, key) == ct)
-	assert(decrypt(ct, key) == pt)
+	w = keyExpansion(key)
+	assert(encrypt(pt, w) == ct)
+	assert(decrypt(ct, w) == pt)
 
 	#test 192 bit mode
 	pt = '00112233445566778899aabbccddeeff'.decode('hex')
 	key = '000102030405060708090a0b0c0d0e0f1011121314151617'.decode('hex')
 	ct = 'dda97ca4864cdfe06eaf70a0ec0d7191'.decode('hex')
-	assert(encrypt(pt, key) == ct)
-	assert(decrypt(ct, key) == pt)
+	w = keyExpansion(key)
+	assert(encrypt(pt, w) == ct)
+	assert(decrypt(ct, w) == pt)
 
 	#test 256 bit mode
 	pt = '00112233445566778899aabbccddeeff'.decode('hex')
 	key = '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f'.decode('hex')
 	ct = '8ea2b7ca516745bfeafc49904b496089'.decode('hex')
-	assert(encrypt(pt, key) == ct)
-	assert(decrypt(ct, key) == pt)
+	w = keyExpansion(key)
+	assert(encrypt(pt, w) == ct)
+	assert(decrypt(ct, w) == pt)
 
 if __name__ == '__main__':
-	assert(numRounds(128/8) == 10)
-	assert(numRounds(192/8) == 12)
-	assert(numRounds(256/8) == 14)
 	testKeyExpansion()
 	testEncryption()
