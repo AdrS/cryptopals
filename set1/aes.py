@@ -125,11 +125,12 @@ def decrypt(ct_block, w):
 class InvalidPadding(Exception):
 	pass
 
-def add_pkcs5_padding(m, block_size = 16):
+def add_pkcs7_padding(m, block_size = 16):
+	#note: pkcs5 is a special case of pkcs7 with block size = 8 bytes
 	num_pad = block_size - (len(m) % block_size)
 	return m + chr(num_pad) * num_pad
 
-def remove_pkcs5_padding(m, block_size = 16):
+def remove_pkcs7_padding(m, block_size = 16):
 	if len(m) % block_size != 0 and len(m) >= block_size:
 		raise InvalidPadding()
 	num_pad = ord(m[-1])
@@ -141,34 +142,62 @@ def splitBlocks(s, block_size = 16):
 	'''splits string into list of blocks (assumes s is multiple of block length'''
 	return [s[block_size*i:block_size*(i + 1)] for i in range(len(s)/block_size)]
 
-def encrypt_ecb(message, key, pad=add_pkcs5_padding):
+def encrypt_ecb(message, key, pad=add_pkcs7_padding):
 	#TODO: add padding
 	w = keyExpansion(key)
 	return ''.join([encrypt(block, w) for block in splitBlocks(pad(message))])
 
-def decrypt_ecb(message, key, unpad=remove_pkcs5_padding):
+def decrypt_ecb(message, key, unpad=remove_pkcs7_padding):
 	w = keyExpansion(key)
 	return unpad(''.join([decrypt(block, w) for block in splitBlocks(message)]))
 
-#TODO: add padding functions + block cipher modes
+def encrypt_cbc(message, key, iv, pad=add_pkcs7_padding):
+	w = keyExpansion(key)
+	ct_blocks = [iv]
 
-def test_pkcs5_padding():
-	assert(add_pkcs5_padding('') == '\x10'*16)
-	assert(add_pkcs5_padding('abc') == 'abc' + '\x0d'*13)
-	assert(add_pkcs5_padding('a'*16 + 'abc') == 'a'*16 + 'abc' + '\x0d'*13)
-	assert(remove_pkcs5_padding('\x10'*16) == '')
-	assert(remove_pkcs5_padding('abcd' + '\x0c'*12) == 'abcd')
+	#c_i = Enc(key, c_{i - 1} xor m_i)
+	for block in splitBlocks(pad(message)):
+		ct_blocks.append(encrypt(xor(ct_blocks[-1], block) ,w))
+	return ''.join(ct_blocks)
+
+def decrypt_cbc(message, key, unpad=remove_pkcs7_padding):
+	w = keyExpansion(key)
+	assert(len(message) % 16 == 0 and len(message) >= 2*16)
+	ct_blocks = splitBlocks(message)
+	pt_blocks = []
+
+	#c_i = Enc(key, c_{i - 1} xor m_i)
+	#m_i = Dec(key, c_i) xor c_{i - 1}
+	for i in range(1, len(ct_blocks)):
+		pt_blocks.append(''.join(xor(decrypt(ct_blocks[i], w), ct_blocks[i - 1])))
+	return unpad(''.join(pt_blocks))
+
+#TODO: add padding functions + block cipher modes
+def test_cbc():
 	for i in range(255):
-		assert(remove_pkcs5_padding(add_pkcs5_padding('a'*i)) == 'a'*i)
+		iv = 'b'*16
+		key = 'c'*16
+		ct = encrypt_cbc('a'*i, key, iv)
+		assert(ct[:16] == iv)
+		assert(decrypt_cbc(ct, key) == 'a'*i)
+
+def test_pkcs7_padding():
+	assert(add_pkcs7_padding('') == '\x10'*16)
+	assert(add_pkcs7_padding('abc') == 'abc' + '\x0d'*13)
+	assert(add_pkcs7_padding('a'*16 + 'abc') == 'a'*16 + 'abc' + '\x0d'*13)
+	assert(remove_pkcs7_padding('\x10'*16) == '')
+	assert(remove_pkcs7_padding('abcd' + '\x0c'*12) == 'abcd')
+	for i in range(255):
+		assert(remove_pkcs7_padding(add_pkcs7_padding('a'*i)) == 'a'*i)
 	try:
-		remove_pkcs5_padding('a'*15 + '\x03')
+		remove_pkcs7_padding('a'*15 + '\x03')
 		assert(False)
 	except InvalidPadding as e:
 		pass
 	else:
 		assert(False)
 	try:
-		remove_pkcs5_padding('a'*25)
+		remove_pkcs7_padding('a'*25)
 		assert(False)
 	except InvalidPadding as e:
 		pass
@@ -228,4 +257,5 @@ def testEncryption():
 if __name__ == '__main__':
 	testKeyExpansion()
 	testEncryption()
-	test_pkcs5_padding()
+	test_pkcs7_padding()
+	test_cbc()
