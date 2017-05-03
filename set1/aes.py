@@ -1,12 +1,13 @@
 
-#lookup tables from wikipedia, based off of FIPS pseudocode http://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.197.pdf
+#lookup tables from wikipedia
+#based off of FIPS pseudocode http://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.197.pdf
+#test vectors for FIPS spec
 
 def numRounds(key_len):
 	'''returns number of rounds for given key length'''
 	return 10 + ((key_len - 16) >> 2)
 
 def subBytes(state):
-	#TODO: make lookup tables consitant (either all bytes or all ints)
 	lookup_table = [
 		'\x63', '\x7c', '\x77', '\x7b', '\xf2', '\x6b', '\x6f', '\xc5', '\x30', '\x01', '\x67', '\x2b', '\xfe', '\xd7', '\xab', '\x76',
 		'\xca', '\x82', '\xc9', '\x7d', '\xfa', '\x59', '\x47', '\xf0', '\xad', '\xd4', '\xa2', '\xaf', '\x9c', '\xa4', '\x72', '\xc0',
@@ -31,21 +32,21 @@ def subBytes(state):
 def shiftRows(state):
 	s = state
 	#s'_{i,j} --> s_{r, (c + r) mod 4}
-	state = [s[0],s[1], s[2], s[3], s[5],s[6], s[7], s[4], s[10], s[11], s[8],s[9], s[15], s[12], s[13], s[14]]
+	state[:16] = [s[0], s[5], s[10], s[15], s[4], s[9], s[14], s[3], s[8], s[13], s[2], s[7], s[12], s[1], s[6], s[11]]
 
 def mixColumns(state):
 	table2 = '\x00\x02\x04\x06\x08\x0a\x0c\x0e\x10\x12\x14\x16\x18\x1a\x1c\x1e\x20\x22\x24\x26\x28\x2a\x2c\x2e\x30\x32\x34\x36\x38\x3a\x3c\x3e\x40\x42\x44\x46\x48\x4a\x4c\x4e\x50\x52\x54\x56\x58\x5a\x5c\x5e\x60\x62\x64\x66\x68\x6a\x6c\x6e\x70\x72\x74\x76\x78\x7a\x7c\x7e\x80\x82\x84\x86\x88\x8a\x8c\x8e\x90\x92\x94\x96\x98\x9a\x9c\x9e\xa0\xa2\xa4\xa6\xa8\xaa\xac\xae\xb0\xb2\xb4\xb6\xb8\xba\xbc\xbe\xc0\xc2\xc4\xc6\xc8\xca\xcc\xce\xd0\xd2\xd4\xd6\xd8\xda\xdc\xde\xe0\xe2\xe4\xe6\xe8\xea\xec\xee\xf0\xf2\xf4\xf6\xf8\xfa\xfc\xfe\x1b\x19\x1f\x1d\x13\x11\x17\x15\x0b\x09\x0f\x0d\x03\x01\x07\x05\x3b\x39\x3f\x3d\x33\x31\x37\x35\x2b\x29\x2f\x2d\x23\x21\x27\x25\x5b\x59\x5f\x5d\x53\x51\x57\x55\x4b\x49\x4f\x4d\x43\x41\x47\x45\x7b\x79\x7f\x7d\x73\x71\x77\x75\x6b\x69\x6f\x6d\x63\x61\x67\x65\x9b\x99\x9f\x9d\x93\x91\x97\x95\x8b\x89\x8f\x8d\x83\x81\x87\x85\xbb\xb9\xbf\xbd\xb3\xb1\xb7\xb5\xab\xa9\xaf\xad\xa3\xa1\xa7\xa5\xdb\xd9\xdf\xdd\xd3\xd1\xd7\xd5\xcb\xc9\xcf\xcd\xc3\xc1\xc7\xc5\xfb\xf9\xff\xfd\xf3\xf1\xf7\xf5\xeb\xe9\xef\xed\xe3\xe1\xe7\xe5'
 	table3 = '\x00\x03\x06\x05\x0c\x0f\x0a\x09\x18\x1b\x1e\x1d\x14\x17\x12\x11\x30\x33\x36\x35\x3c\x3f\x3a\x39\x28\x2b\x2e\x2d\x24\x27\x22\x21\x60\x63\x66\x65\x6c\x6f\x6a\x69\x78\x7b\x7e\x7d\x74\x77\x72\x71\x50\x53\x56\x55\x5c\x5f\x5a\x59\x48\x4b\x4e\x4d\x44\x47\x42\x41\xc0\xc3\xc6\xc5\xcc\xcf\xca\xc9\xd8\xdb\xde\xdd\xd4\xd7\xd2\xd1\xf0\xf3\xf6\xf5\xfc\xff\xfa\xf9\xe8\xeb\xee\xed\xe4\xe7\xe2\xe1\xa0\xa3\xa6\xa5\xac\xaf\xaa\xa9\xb8\xbb\xbe\xbd\xb4\xb7\xb2\xb1\x90\x93\x96\x95\x9c\x9f\x9a\x99\x88\x8b\x8e\x8d\x84\x87\x82\x81\x9b\x98\x9d\x9e\x97\x94\x91\x92\x83\x80\x85\x86\x8f\x8c\x89\x8a\xab\xa8\xad\xae\xa7\xa4\xa1\xa2\xb3\xb0\xb5\xb6\xbf\xbc\xb9\xba\xfb\xf8\xfd\xfe\xf7\xf4\xf1\xf2\xe3\xe0\xe5\xe6\xef\xec\xe9\xea\xcb\xc8\xcd\xce\xc7\xc4\xc1\xc2\xd3\xd0\xd5\xd6\xdf\xdc\xd9\xda\x5b\x58\x5d\x5e\x57\x54\x51\x52\x43\x40\x45\x46\x4f\x4c\x49\x4a\x6b\x68\x6d\x6e\x67\x64\x61\x62\x73\x70\x75\x76\x7f\x7c\x79\x7a\x3b\x38\x3d\x3e\x37\x34\x31\x32\x23\x20\x25\x26\x2f\x2c\x29\x2a\x0b\x08\x0d\x0e\x07\x04\x01\x02\x13\x10\x15\x16\x1f\x1c\x19\x1a'
 	for c in range(4):
-		s0, s1, s2, s3 = state[4*c:4*(c + 1)]
-		state[4*c + 0] = table2[s0] ^ table3[s1] ^ s2         ^ s3
-		state[4*c + 1] = s0         ^ table2[s1] ^ table3[s2] ^ s3
-		state[4*c + 2] = s0         ^ s1         ^ table2[s2] ^ table3[s3]
-		state[4*c + 3] = table3[s0] ^ s1         ^ s2         ^ table2[s3]
+		s0, s1, s2, s3 = [ord(b) for b in state[4*c:4*(c + 1)]]
+		state[4*c + 0] = chr(ord(table2[s0]) ^ ord(table3[s1]) ^ s2         ^ s3)
+		state[4*c + 1] = chr(s0         ^ ord(table2[s1]) ^ ord(table3[s2]) ^ s3)
+		state[4*c + 2] = chr(s0         ^ s1         ^ ord(table2[s2]) ^ ord(table3[s3]))
+		state[4*c + 3] = chr(ord(table3[s0]) ^ s1         ^ s2         ^ ord(table2[s3]))
 
 def addRoundKey(state, roundKey):
 	for i in range(len(state)):
-		state[i] ^= roundKey[i]
+		state[i] = chr(ord(roundKey[i]) ^ ord(state[i]))
 
 def subWord(word):
 	subBytes(word)
@@ -60,8 +61,10 @@ def xor(s1, s2):
 def printHex(s):
 	print (''.join(s)).encode('hex')
 
-def keyExpansion(key):
+def string2bytes(s):
+	return [c for c in s]
 
+def keyExpansion(key):
 	rcon = [['\x8d','\0','\0','\0'] , ['\x01','\0','\0','\0'] , ['\x02','\0','\0','\0'] , ['\x04','\0','\0','\0'] , ['\x08','\0','\0','\0'] , ['\x10','\0','\0','\0'] , ['\x20','\0','\0','\0'] , ['\x40','\0','\0','\0'] , ['\x80','\0','\0','\0'] , ['\x1b','\0','\0','\0'] , ['\x36','\0','\0','\0'] , ['\x6c','\0','\0','\0'] , ['\xd8','\0','\0','\0'] , ['\xab','\0','\0','\0'] , ['\x4d','\0','\0','\0'] , ['\x9a','\0','\0','\0'] , ['\x2f','\0','\0','\0'] , ['\x5e','\0','\0','\0'] , ['\xbc','\0','\0','\0'] , ['\x63','\0','\0','\0'] , ['\xc6','\0','\0','\0'] , ['\x97','\0','\0','\0'] , ['\x35','\0','\0','\0'] , ['\x6a','\0','\0','\0'] , ['\xd4','\0','\0','\0'] , ['\xb3','\0','\0','\0'] , ['\x7d','\0','\0','\0'] , ['\xfa','\0','\0','\0'] , ['\xef','\0','\0','\0'] , ['\xc5','\0','\0','\0']]
 	nk = len(key)/4
 	rounds = numRounds(len(key))
@@ -81,8 +84,8 @@ def keyExpansion(key):
 def encrypt(pt_block, key):
 	#TODO: check if this encrypts in place
 	num_rounds = numRounds(len(key))
-	state = pt_block
-	w = keyExpansion(key)
+	state = string2bytes(pt_block)
+	w = keyExpansion(string2bytes(key))
 
 	addRoundKey(state, w[:16])
 	for i in range(1, num_rounds):
@@ -94,7 +97,7 @@ def encrypt(pt_block, key):
 	subBytes(state)
 	shiftRows(state)
 	addRoundKey(state, w[-16:])
-	return state
+	return ''.join(state)
 
 def testKeyExpansion():
 	#128 bit key test
@@ -112,8 +115,37 @@ def testKeyExpansion():
 	exp_key = '603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff49ba354118e6925afa51a8b5f2067fcdea8b09c1a93d194cdbe49846eb75d5b9ad59aecb85bf3c917fee94248de8ebe96b5a9328a2678a647983122292f6c79b3812c81addadf48ba24360af2fab8b46498c5bfc9bebd198e268c3ba709e0421468007bacb2df331696e939e46c518d80c814e20476a9fb8a5025c02d59c58239de1369676ccc5a71fa2563959674ee155886ca5d2e2f31d77e0af1fa27cf73c3749c47ab18501ddae2757e4f7401905acafaaae3e4d59b349adf6acebd10190dfe4890d1e6188d0b046df344706c631e'.decode('hex')
 	assert(''.join(keyExpansion(key)) == exp_key)
 
+def testEncryption():
+	#test 128 bit mode
+	pt = '\x32\x43\xf6\xa8\x88\x5a\x30\x8d\x31\x31\x98\xa2\xe0\x37\x07\x34'
+	key = '\x2b\x7e\x15\x16\x28\xae\xd2\xa6\xab\xf7\x15\x88\x09\xcf\x4f\x3c'
+	ct = '3902dc1925dc116a8409850b1dfb9732'.decode('hex')
+	c = encrypt(pt, key) 
+	#printHex(c)
+	#printHex(ct)
+	#assert(c == ct)
+
+	#test 128 bit mode
+	pt = '00112233445566778899aabbccddeeff'.decode('hex')
+	key = '000102030405060708090a0b0c0d0e0f'.decode('hex')
+	ct = '69c4e0d86a7b0430d8cdb78070b4c55a'.decode('hex')
+	assert(encrypt(pt, key) == ct)
+
+	#test 192 bit mode
+	pt = '00112233445566778899aabbccddeeff'.decode('hex')
+	key = '000102030405060708090a0b0c0d0e0f1011121314151617'.decode('hex')
+	ct = 'dda97ca4864cdfe06eaf70a0ec0d7191'.decode('hex')
+	assert(encrypt(pt, key) == ct)
+
+	#test 256 bit mode
+	pt = '00112233445566778899aabbccddeeff'.decode('hex')
+	key = '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f'.decode('hex')
+	ct = '8ea2b7ca516745bfeafc49904b496089'.decode('hex')
+	assert(encrypt(pt, key) == ct)
+
 if __name__ == '__main__':
 	assert(numRounds(128/8) == 10)
 	assert(numRounds(192/8) == 12)
 	assert(numRounds(256/8) == 14)
 	testKeyExpansion()
+	testEncryption()
