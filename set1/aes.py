@@ -122,7 +122,58 @@ def decrypt(ct_block, w):
 	addRoundKey(state, w[:16])
 	return ''.join(state)
 
+class InvalidPadding(Exception):
+	pass
+
+def add_pkcs5_padding(m, block_size = 16):
+	num_pad = block_size - (len(m) % block_size)
+	return m + chr(num_pad) * num_pad
+
+def remove_pkcs5_padding(m, block_size = 16):
+	if len(m) % block_size != 0 and len(m) >= block_size:
+		raise InvalidPadding()
+	num_pad = ord(m[-1])
+	if num_pad == 0 or m[-num_pad:] != chr(num_pad)*num_pad:
+		raise InvalidPadding()
+	return m[:-num_pad]
+
+def splitBlocks(s, block_size = 16):
+	'''splits string into list of blocks (assumes s is multiple of block length'''
+	return [s[block_size*i:block_size*(i + 1)] for i in range(len(s)/block_size)]
+
+def encrypt_ecb(message, key, pad=add_pkcs5_padding):
+	#TODO: add padding
+	w = keyExpansion(key)
+	return ''.join([encrypt(block, w) for block in splitBlocks(pad(message))])
+
+def decrypt_ecb(message, key, unpad=remove_pkcs5_padding):
+	w = keyExpansion(key)
+	return unpad(''.join([decrypt(block, w) for block in splitBlocks(message)]))
+
 #TODO: add padding functions + block cipher modes
+
+def test_pkcs5_padding():
+	assert(add_pkcs5_padding('') == '\x10'*16)
+	assert(add_pkcs5_padding('abc') == 'abc' + '\x0d'*13)
+	assert(add_pkcs5_padding('a'*16 + 'abc') == 'a'*16 + 'abc' + '\x0d'*13)
+	assert(remove_pkcs5_padding('\x10'*16) == '')
+	assert(remove_pkcs5_padding('abcd' + '\x0c'*12) == 'abcd')
+	for i in range(255):
+		assert(remove_pkcs5_padding(add_pkcs5_padding('a'*i)) == 'a'*i)
+	try:
+		remove_pkcs5_padding('a'*15 + '\x03')
+		assert(False)
+	except InvalidPadding as e:
+		pass
+	else:
+		assert(False)
+	try:
+		remove_pkcs5_padding('a'*25)
+		assert(False)
+	except InvalidPadding as e:
+		pass
+	else:
+		assert(False)
 
 def testKeyExpansion():
 	#128 bit key test
@@ -177,3 +228,4 @@ def testEncryption():
 if __name__ == '__main__':
 	testKeyExpansion()
 	testEncryption()
+	test_pkcs5_padding()
