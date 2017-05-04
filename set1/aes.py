@@ -1,3 +1,4 @@
+import struct
 
 #lookup tables from wikipedia
 #based off of FIPS pseudocode http://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.197.pdf
@@ -63,6 +64,7 @@ def rotWord(word):
 	return [word[1], word[2], word[3], word[0]]
 
 def xor(s1, s2):
+	#TODO: make iterface nicer (return bytestring)
 	return [chr(ord(b1) ^ ord(b2)) for b1, b2 in zip(s1, s2)]
 
 def printHex(s):
@@ -167,16 +169,35 @@ def decrypt_cbc(message, key, unpad=remove_pkcs7_padding):
 	'''note: assumes iv is first block of ciphertext'''
 	w = keyExpansion(key)
 	assert(len(message) % 16 == 0 and len(message) >= 2*16)
-	ct_blocks = splitBlocks(message)
-	pt_blocks = []
+	ctBlocks = splitBlocks(message)
+	ptBlocks = []
 
 	#c_i = Enc(key, c_{i - 1} xor m_i)
 	#m_i = Dec(key, c_i) xor c_{i - 1}
-	for i in range(1, len(ct_blocks)):
-		pt_blocks.append(''.join(xor(decrypt(ct_blocks[i], w), ct_blocks[i - 1])))
-	return unpad(''.join(pt_blocks))
+	for i in range(1, len(ctBlocks)):
+		ptBlocks.append(''.join(xor(decrypt(ctBlocks[i], w), ctBlocks[i - 1])))
+	return unpad(''.join(ptBlocks))
 
-#TODO: add padding functions + block cipher modes
+def encrypt_ctr(message, key, nonce):
+	numBlocks = len(message)/16 + (1 if len(message) % 16 else 0)
+	w = keyExpansion(key)
+	keyStream = []
+	for i in range(numBlocks):
+		keyStream.append(encrypt(struct.pack("<QQ",nonce, i), w))
+	return ''.join(xor(''.join(keyStream), message))
+
+def decrypt_ctr(message, key, nonce):
+	return encrypt_ctr(message, key, nonce)
+
+def test_ctr():
+	nonce = 1243
+	key = 'b'*(192/8)
+	for i in range(100):
+		pt = 'a'*i
+		ct = encrypt_ctr(pt, key, nonce)
+		assert(len(pt) == len(ct))
+		assert(pt == decrypt_ctr(ct, key, nonce))
+
 def test_cbc():
 	for i in range(255):
 		iv = 'b'*16
@@ -269,3 +290,4 @@ if __name__ == '__main__':
 	testEncryption()
 	test_pkcs7_padding()
 	test_cbc()
+	test_ctr()
