@@ -18,3 +18,10 @@ def is_ascii(bs):
 		if ord(b) >= 128:
 			return False
 	return True
+
+def split(data, chunk_size):
+	num_chunks = len(data)/chunk_size
+	return [data[chunk_size*i: chunk_size*(i + 1)] for i in range(num_chunks)]
+
+def int32(i):
+	return 0xffffffff & i
