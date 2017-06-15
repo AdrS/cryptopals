@@ -12,3 +12,9 @@ def randomUint64():
 def xor(a, b):
 	assert(len(a) == len(b))
 	return ''.join([chr(ord(c) ^ ord(d)) for c, d in zip(a,b)])
+
+def is_ascii(bs):
+	for b in bs:
+		if ord(b) >= 128:
+			return False
+	return True
