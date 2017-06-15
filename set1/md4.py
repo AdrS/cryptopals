@@ -29,7 +29,7 @@ class MD4:
 		if state:
 			assert(len(state) == 16)
 			assert(ml % 64 == 0)
-			self.a, self.c, self.c, self.d = unpack('<4I', state)
+			self.a, self.b, self.c, self.d = unpack('<4I', state)
 		else:
 			self.a = 0x67452301
 			self.b = 0xefcdab89
