@@ -18,7 +18,8 @@ class Sha1:
 	def __init__(self, state = None, ml = 0):
 		if state:
 			assert(len(state) == 20)
-			h0, h1, h2, h3, h4 = unpack('>IIIII', state)
+			assert(ml % 64 == 0)
+			h0, h1, h2, h3, h4 = unpack('>5I', state)
 			self.h0, self.h1, self.h2, self.h3, self.h4 = h0, h1, h2, h3, h4
 		else:
 			self.h0 = 0x67452301
