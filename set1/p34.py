@@ -17,6 +17,7 @@ def connect(addr, p=nist_p, g=nist_g):
 	B = recv_bigint(con)
 	s = get_common_key(B, a, p)
 	key = sha1sum(bigint_to_bytes(s))[:16]
+	print 'Shared key: ', key.encode('hex')
 	return con, key
 
 def send(con, msg, key):
@@ -39,15 +40,16 @@ def run_echo_server(port):
 		p = recv_bigint(con)
 		g = recv_bigint(con)
 		A = recv_bigint(con)
-		if g >= p or A >= p:
+		if g >= p or A > p:
+			print 'received bad parameters'
 			con.send('error: bad parameters')
 			con.close()
 		b, B = gen_key_pair(p, g)
 		send_bigint(con, B)
 		s = get_common_key(A, b, p)
-		print 'Established shared key'
-
 		key = sha1sum(bigint_to_bytes(s))[:16]
+		print 'Established shared key:', key.encode('hex')
+
 		msg = recv(con, key)
 
 		print 'Received: ', msg
@@ -70,41 +72,60 @@ def run_mitm_server(port, addrB):
 		conA, addrA = lfd.accept()
 		print 'Connection from Alice %s:%d' % addrA
 
-		#set do DH with Alice
+		#start DH with Alice
+		#A -> M p, g, A
 		p = recv_bigint(conA)
 		g = recv_bigint(conA)
 		A = recv_bigint(conA)
 		if g >= p or A >= p:
+			print 'received bad parameters'
 			conA.send('error: bad parameters')
 			conA.close()
 			continue
-		c, C = gen_key_pair(p, g)
-		send_bigint(conA, C)
-		sA = get_common_key(A, c, p)
-		print 'Established shared key with Alice'
 
-		keyA = sha1sum(bigint_to_bytes(sA))[:16]
+		#do DH with Bob
+		#M -> B p, g, p
+		conB = socket()
+		conB.connect(addrB)
+		send_bigint(conB, p)
+		send_bigint(conB, g)
+		send_bigint(conB, p)
 
-		#establish connection with Bob
-		conB, keyB = connect(addrB)
-		print 'Established connection with Bob'
+		#B -> M B
+		B = recv_bigint(conB)
+
+		#sB = p^b = 0 (mod p)
+		key = sha1sum(bigint_to_bytes(0))[:16]
+
+		print 'Finished DH with Bob'
+
+		#finish DH with Alice
+		#M -> A p
+		send_bigint(conA, p)
+
+		#sA = p^a = 0 (mod p)
+
+		print 'Finished DH with Alice'
+
+		#NOTE: Alice and Bob always end up with the same predictable
+		#	session key because of the MITM
 
 		#read ping from Alice
-		msgA = recv(conA, keyA)
+		msgA = recv(conA, key)
 
 		print 'Received ping from Alice: ', msgA
 
 		#forward ping to Bob
-		send(conB, msgA, keyB)
+		send(conB, msgA, key)
 
 		#read pong from Bob
-		msgB = recv(conB, keyB)
+		msgB = recv(conB, key)
 		conB.close()
 
 		print 'Received pong from Bob: ', msgB
 
 		#forward pong to Alice
-		send(conA, msgB, keyA)
+		send(conA, msgB, key)
 		conA.close()
 
 def usage(argv):

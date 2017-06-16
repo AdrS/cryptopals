@@ -6,6 +6,8 @@ nist_g = 2
 
 def gen_key_pair(p=nist_p, g=nist_g):
 	'''generates a public private dh key pair for the specified group'''
+	#who cares if this is pseudo random
+	random.seed()
 	a = random.randrange(p)
 	A = pow(g, a, p)
 	return (a, A)
