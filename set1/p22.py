@@ -10,6 +10,7 @@ def num_bits(n):
 		n >>= 1
 	return b
 
+#TODO: just use random.SystemRandom.randrange
 def urandint(rmin, rmax):
 	'''generate uniformly randomnumber in [rmin, rmax] using urandom'''
 	diff = rmax - rmin
