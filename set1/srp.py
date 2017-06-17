@@ -108,7 +108,7 @@ def srp_connect(addr, name, password):
 	return con, K
 
 def usage(argv):
-	print ''''usage:
+	print '''usage:
 	%s <port>                      run server on port
 	%s <host> <port> <user> <pass> connect to server at address
 	''' % (argv[0], argv[0])
