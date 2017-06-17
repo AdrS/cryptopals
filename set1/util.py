@@ -39,3 +39,6 @@ def bytes_to_bigint(b):
 
 def sha1sum(m):
 	return hashlib.sha1(m).digest()
+
+def sha256sum(m):
+	return hashlib.sha256(m).digest()
