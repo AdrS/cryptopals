@@ -42,9 +42,43 @@ def mod_inv(a, n):
 		x -= n
 	return x
 
-def crt():
-	pass
-	#TODO: solve Chinese remainder theorem
+def crt(a, n):
+	'''Use the Chinese Remainder Theorem to find a solution to the series
+	of congruences x_i = a_i (mod n_i) where gcd(n_i, n_j) = 1 for i != j
+	Solution X is in range [0, Pi_{i} n_i)
+	'''
+	#Let N = product of n_is
+	N = 1
+	for n_i in n:
+		N *= n_i
+	#Let N_i = N/n_i
+	Ni = [N/n_i for n_i in n]
+
+	#Let b_i = N_i^(-1) (mod n_i) [existence of inverses guaranteed by fact that
+	#the n_is are pairwise relatively prime
+	b = [mod_inv(N_i, n_i) for N_i, n_i in zip(Ni, n)]
+
+	#X = sum a_i*b_i*N_i is unique solution (modulo N) to system of congruences
+	X = sum((a_i*b_i*N_i for a_i, b_i, N_i in zip(a, b, Ni))) % N
+	return X
+
+def ith_root(x, n):
+	#find nth root of x using binary search
+	#see: https://en.wikipedia.org/wiki/Talk%3ANth_root_algorithm
+	#for other methods
+	#TODO: test this more
+	low, high = 1, x
+
+	while low < high:
+		mid = (low + high)/2
+		mid_cubed = mid ** n
+		if mid_cubed < x:
+			low = mid
+		elif mid_cubed > x:
+			high = mid
+		else:
+			return mid
+	return low
 
 def _test_gcd():
 	assert(gcd(123, 123) == 123)
@@ -160,6 +194,31 @@ def find_prime(bit_length):
 		#convert even to odd
 		if n % 2 == 0:
 			n += 1
+		if is_prime(n):
+			return n
+
+def find_strong_prime(bit_length):
+	'''finds a prime of the form p = aq + 1 for prim q and small a
+	Note: this guarantees that p - 1 will have no small factors besides a'''
+	#see: https://people.csail.mit.edu/rivest/pubs/RS01.version-1999-11-22.pdf
+	#Rivest Are Strong Primes Need for RSA? Section 5
+	q = find_prime(bit_length - 1)
+	p = 2*q + 1
+	two_q = 2*q
+	while not is_prime(p):
+		p += two_q
+	return p
+	#Timing from a laptop i5
+	#$ time python -c "import number_theory as nt; nt.find_strong_prime(1024)"
+	#real    0m27.405s
+	#user    0m27.016s
+	#sys     0m0.266s
+
+def find_safe_prime(bit_length):
+	'''find prime of the form p = 2q + 1 where q is prime'''
+	while True:
+		q = find_prime(bit_length - 1)
+		n = 2*q + 1
 		if is_prime(n):
 			return n
 
