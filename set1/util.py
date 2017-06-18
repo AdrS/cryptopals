@@ -36,6 +36,11 @@ def bigint_to_bytes(i):
 
 def bytes_to_bigint(b):
 	return int(b.encode('hex'), 16)
+	#n = 0
+	#for c in b:
+	#	n <<= 8
+	#	n += ord(c)
+	#return n
 
 def sha1sum(m):
 	return hashlib.sha1(m).digest()
