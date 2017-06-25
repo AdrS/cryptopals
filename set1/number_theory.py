@@ -69,7 +69,7 @@ def ith_root(x, n):
 	#TODO: test this more
 	low, high = 1, x
 
-	while low < high:
+	while low < high - 1:
 		mid = (low + high)/2
 		mid_cubed = mid ** n
 		if mid_cubed < x:
