@@ -1,11 +1,12 @@
 import dsa, number_theory, util
 
-def recover_private_key(m, r, s, k, q):
+def recover_private_key(m, r, s, k, q, H_m=None):
 	'''recover dsa private key from k and signature'''
 	#s = k^(-1)(H(m) + xr) mod q
 	#==> sk - H(m) = xr (mod q)
 	#==> x = r^(-1)(sk - H(m)) mod q
-	H_m = util.bytes_to_bigint(util.sha1sum(m))
+	if not H_m:
+		H_m = util.bytes_to_bigint(util.sha1sum(m))
 	r_inv = number_theory.mod_inv(r, q)
 	x = ((((s*k) % q - H_m) % q) * r_inv) % q
 	return x
