@@ -5,6 +5,9 @@ def oracle(ct, d, n):
 	return rsa.rsa_decrypt(ct, d, n) % 2 == 0
 
 def decrypt(c, e, n, parity_oracle):
+	'''compute c^d (mod n) given access to parity oracle
+	Note: this can be used for decryption AND signing
+	'''
 	lower = 0
 	# upper = lower + 1
 	i = 0

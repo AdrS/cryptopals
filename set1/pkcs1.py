@@ -1,5 +1,16 @@
 import random
 
+def num_bytes(n):
+	'''returns number of bytes needed to represent number'''
+	b = 0
+	while n:
+		b += 1
+		n >>= 1
+	if b & 7:
+		return (b >> 3) + 1
+	else:
+		return b >> 3
+
 def pkcs1_pad(m, mod_len):
 	'''pad m according to PKCS1 so that it's same length as modulus'''
 	pad_len = mod_len - len(m) - 3
@@ -40,6 +51,14 @@ def pkcs1_unpad(m, mod_len):
 
 	return m[3 + pad_len:]
 
+def test_num_bytes():
+	assert(num_bytes(0) == 0)
+	assert(num_bytes(1) == 1)
+	assert(num_bytes(7) == 1)
+	assert(num_bytes(255) == 1)
+	assert(num_bytes(256) == 2)
+	assert(num_bytes((1<<16) - 1) == 2)
+
 def test_pkcs1_unpad():
 	#wrong length
 	assert(not pkcs1_unpad('\x00\x0212345678\x00m', 13))
@@ -65,5 +84,6 @@ def sanity_test():
 			assert(pkcs1_unpad(pkcs1_pad(m, mod_len), mod_len) == m)
 
 if __name__ == '__main__':
+	test_num_bytes()
 	test_pkcs1_unpad()
 	sanity_test()
