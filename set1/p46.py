@@ -4,45 +4,73 @@ def oracle(ct, d, n):
 	'''checks if parity of plaintext is even'''
 	return rsa.rsa_decrypt(ct, d, n) % 2 == 0
 
-def decrypt(ct, e, n, parity_oracle):
-	high = n
-	low = 0
+def decrypt(c, e, n, parity_oracle):
+	lower = 0
+	# upper = lower + 1
+	i = 0
 
-	#TODO: does not get last byte
-	i = 1
-	while low < high:
-		#(2^i)^e * c = (2^i * m)^e (mod n)
-		#            = (m << i)^e (mod n)
-		cur = (pow((1<<i), e, n) * ct) % n
+	#invariants:
+	# 1) 0 <= lower < upper <= 2^i
+	# 2) upper - lower = 1
+	# 3) m in [n*lower/2^i, n*upper/2^i]
 
-		mid = (high + low)/2
+	pow2i = 1 #2^i
+	while pow2i < n:
+		# 3) ==> 2^i*m in [n*lower, n*upper]
+		# 2) ==> 2^i*m in [n*lower, n*(lower + 1)]
+		#    ==> 2^i*m - n*lower in [0, n]
 
-		#low <= m <= high <= n
-		#==>
-		#(low << i) <= (m << i) <= (high << i) <= (n << i)
+		# 2^(i + 1)*m in [2n*lower, 2n*upper]
+		# 2^(i + 1)*m in [2n*lower, 2n*lower + 2n]
 
+		#case I: 2^(i + 1)*m in [2n*lower, 2n*lower + n]
+		# ==> 2^(i + 1)*m  - 2n*lower in [0, n]
+		# ==> 2*2^i*m is even mod n
+
+		#case II: 2^(i + 1)*m in [2n*lower + n, 2n*lower + 2n]
+		# ==> 2^(i + 1)*m  - 2n*lower in [n, 2n]
+		# ==> 2^(i + 1)*m  - 2n*lower - n in [0, n]
+		# ==>     " " mod n = even - odd = odd mod n
+		# ==> 2*2^i*m is odd mod n
+
+		#(2^i * m)^e = (2^i)^e * c (mod n)
+		pow2i <<= 1
+		cur = (pow(pow2i, e, n) * c) % n
+
+		#case I
 		if parity_oracle(cur):
-			high = mid
+			# 2^(i + 1)*m  - 2n*lower in [0, n]
+			# ==> 2^(i + 1)*m in [n*(2*lower), n*(2*lower) + n]
+			# lower_{i + 1} = 2*lower
+			# upper_{i + 1} = 2*lower + 1
+			# Note: invariant 2 still holds
+			# 
+			# ==> 2^(i + 1)*m in [n*lower_{i + 1}, n*(lower_{i + 1} + 1)]
+			# ==> m in [n*lower_{i + 1}/2^(i + 1), n*upper_{i + 1}/2^(i + 1)]
+			# Note: invariant 3 still holds
+			lower <<= 1
 		else:
-			low = mid
-
-		print util.bigint_to_bytes(high)
-		i += 1
-
-		#if 2m > n ==> 2n > 2m > n
-		#==> 2m mod n = 2m - n
-		#==> 2m is odd (mod n)
-
-		#if 2m < n ==> 2m mod n = 2m ==> 2m is even mod n
-		#n is odd => don't have to consider case 2m = n
-
-		#find enc(2m mod n)
-		#2^e*c = 2^e*m^e = (2m)^e (mod n)
-	return util.bigint_to_bytes(high)
+			# 2^(i + 1)*m  - 2n*lower in [n, 2n]
+			# ==> 2^(i + 1)*m in [n*(2*lower + 1), n*(2*lower + 2)]
+			# ==> 2^(i + 1)*m in [n*(2*lower + 1), n*2*upper]
+			# upper_{i + 1} = 2*upper
+			# lower_{i + 1} = 2*upper - 1
+			# Note: invariant 2 still holds
+			# 
+			# ==> 2^(i + 1)*m in [n*lower_{i + 1}, n*upper_{i + 1}]
+			# ==> m in [n*lower_{i + 1}/2^(i + 1), n*upper_{i + 1}/2^(i + 1)]
+			# Note: invariant 3 still holds
+			#(lower + 1) * 2 - 1 = 2*lower + 1
+			lower = (lower << 1) + 1
+		i = i + 1
+	# 2^i >= n ==>
+	#The interval [n*lower/2^i, n*upper/2^i] has width <= 1
+	#integer division by 2^i rounds down ==> use upper bound to find m
+	return ((lower + 1)*n) >> i
 
 if __name__ == '__main__':
 	pt = base64.b64decode('VGhhdCdzIHdoeSBJIGZvdW5kIHlvdSBkb24ndCBwbGF5IGFyb3VuZCB3aXRoIHRoZSBGdW5reSBDb2xkIE1lZGluYQ==')
 	d, e, n = rsa._sample_params
 	ct = rsa.rsa_encrypt(pt, e, n)
 	
-	print decrypt(ct, e, n, lambda ct: oracle(ct, d, n))
+	print util.bigint_to_bytes(decrypt(ct, e, n, lambda ct: oracle(ct, d, n)))
