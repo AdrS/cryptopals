@@ -1,5 +1,8 @@
 import pkcs1, rsa, util
 
+import random #only for development
+#debug
+
 def union_of_intervals(intervals):
 	'''takes list of overlapping closed intervals [(a_i, b_i)] where a_i <= b_i 
 	returns the union of of the intervals in sorted by a_i'''
@@ -37,48 +40,60 @@ def padding_oracle(c, d, n, mod_len):
 	p = '\x00' * (mod_len - len(p)) + p
 	return pkcs1.pkcs1_unpad(p, mod_len) != None
 
-def fast_oracle(c, d, n, mod_len):
-	p = util.bigint_to_bytes(rsa.rsa_decrypt(c, d, n))
+def fast_oracle(c, d, n, l, u):
+	p = rsa.rsa_decrypt(c, d, n)
+	return l <= p and p < u
 	if p[0] != '\x02': return False
-
-	#do full check
-	#pad start with 0s so it has same length as modulus
-	p = '\x00' * (mod_len - len(p)) + p
-	return pkcs1.pkcs1_unpad(p, mod_len) != None
 
 def _next_s(c, e, n, si, padding_oracle):
 	'''find smallest s_{i+1} > s_i such that 2B <= sc^d (mod n) < 3B'''
 	si += 1
-	cp = (pow(si, e, n) * c) % n
-	while not padding_oracle(cp):
+	while not padding_oracle((pow(si, e, n) * c) % n):
 		si += 1
-		cp = (pow(si, e, n) * c) % n
 	return si
 
 def _step2a(c, e, n, B, padding_oracle):
 	'''find smallest s_1 >= n/(3B) such that 2B <= sc^d (mod n) < 3B'''
 	return _next_s(c, e, n, n/(3*B), padding_oracle)
 
+#for testing
+def assert_intervals_valid(intervals):
+	has_m = False
+	for a, b in intervals:
+		assert(a <= b)
+		if a <= M and M <= b:
+			has_m = True
+	assert(has_m)
+
 #narrow set of intervals
 def _step3(intervals, B, n, s):
 	narrowed_intervals = []
+
+	#DEBUG
+	assert_intervals_valid(intervals)
 	for a, b in intervals:
 		#if m in [a, b] and 2B <= sm - rn < 3B for some r
 		#
 		#(sa - 3B + 1)/n <= r <= (sb - 2B)/n
-		r_min = (s*a - 3*B + 1)/n
+
+		#FIXME: might not be true minimum due to rounding
+		r_min = (s*a - 3*B + 1)/n + 1
 		r_max = (s*b - 2*B)/n
 
 		#TODO: does rounding matter?
+		#FIXME: breaks here
 		#(2B + rn)/s <= m <= (3B - 1 + rn)/s
-		ap = max(a, (2*B + r_min*n)/s) #TODO: should be ceil
-		bp = min(b, (3*B + 1 + r_max*n)/s)
+		ap = max(a, (2*B + r_max*n)/s) #TODO: should be ceil
+		bp = min(b, (3*B - 1 + r_min*n)/s)
 
 		#if new interval is non empty, keep it
 		if ap <= bp:
 			narrowed_intervals.append((ap, bp))
+	#DEBUG
+	assert_intervals_valid(narrowed_intervals)
 	return union_of_intervals(narrowed_intervals)
-	
+
+
 def decrypt(c, e, n, padding_oracle):
 	#plain old ciphertext should be valid
 	assert(padding_oracle(c))
@@ -87,26 +102,82 @@ def decrypt(c, e, n, padding_oracle):
 	#B = 2^8(mod_len - 2)
 	B = 1 << (8*mod_len - 16)
 
+	assert(2*B <= M and M < 3*B)
+
 	#messages with valid padding are in range [2B, 3B)
 	#Keep track of intervals c^d (mod n) could be in
 	intervals = [(2*B, 3*B - 1)]
+	
+	#DEBUG
+	assert_intervals_valid(intervals)
 
 	print 'Starting 2.a...'
 	#2.a
 	# Find smallest s_1 such that s_1 >= n/(3B)
 	s = _step2a(c, e, n, B, padding_oracle)
-	intervals = _step3(intervals, B, n, s)
-
 	print 'Found first s', s
+	intervals = _step3(intervals, B, n, s)
+	#DEBUG
+	assert_intervals_valid(intervals)
+
 
 	#2.b
 	print 'Starting 2.b...'
 	while len(intervals) > 1:
+		print 'multiple intervals'
 		s = _next_s(c, e, n, s, padding_oracle)
 		intervals = _step3(intervals, B, n, s)
+
 	print 'Only interval left', intervals
+	#FIXME: interval does not contain value :(
+
+	assert(intervals)
+	#only one interval left
+	a, b = intervals[0]
 
 	#2.c
+	#while interval contains multiple values
+	while a < b - 1:
+		#DEBUG
+		assert(a <= M)
+		assert(M <= b)
+
+		print b - a
+		sprev = s
+		#try small values of r_i, s_i such that
+		# r_i >= 2(b*s_{i - 1} - 2B)/n
+		#
+		#(2B + r_i*n)/b <= s_i < (3B + r_i*n)/a
+		#r = ((b*sprev - (B << 1)) << 1)/n
+
+		r = 2*(b*sprev - 2*B)/n
+
+		##try 1
+		#found = False
+		#while not found:
+		#	s = (2*B + r*n)/b
+		#	for _ in range(10):
+		#		if padding_oracle((pow(s, e, n) * c) % n):
+		#			found = True
+		#		s += 1
+		#	r += 1
+		
+		#try 2 (kind of works, but way to slow)
+		found = False
+		while not found:
+			tmp = 2*B + r*n
+			s = tmp/b #(2B + r_i*n)/b
+			ub = (tmp + B)/a #(3B + r_i*n)/a
+			while s <= ub and not found:
+				#until a valid one is found
+				if padding_oracle((pow(s, e, n) * c) % n):
+					found = True
+					break
+				s += 1
+			r += 1
+		a, b = _step3([(a,b)], B, n, s)[0]
+	return a
+
 
 if __name__ == '__main__':
 	#don't want to have to wait for key generation each time
@@ -114,7 +185,15 @@ if __name__ == '__main__':
 
 	m = 'Hello Adrian.'
 	mod_len = pkcs1.num_bytes(n)
-	c = rsa.rsa_encrypt(pkcs1.pkcs1_pad(m, mod_len), e, n)
-	o = lambda c: padding_oracle(c, d, n, mod_len)
+	B = 1 << (8*mod_len - 16)
 
-	print decrypt(c, e, n, lambda c: padding_oracle(c, d, n, mod_len))
+	#TODO: remove this when done (just to make debugging easier)
+	random.seed(1337)
+	global M
+	M = util.bytes_to_bigint(pkcs1.pkcs1_pad(m, mod_len, random))
+	print 'M', M
+
+	c = rsa.rsa_encrypt(M, e, n)
+	#o = lambda c: padding_oracle(c, d, n, mod_len)
+
+	print decrypt(c, e, n, lambda c: fast_oracle(c, d, n, 2*B, 3*B))

@@ -11,7 +11,7 @@ def num_bytes(n):
 	else:
 		return b >> 3
 
-def pkcs1_pad(m, mod_len):
+def pkcs1_pad(m, mod_len, rand=random.SystemRandom()):
 	'''pad m according to PKCS1 so that it's same length as modulus'''
 	pad_len = mod_len - len(m) - 3
 	assert(pad_len >= 8)
@@ -20,7 +20,6 @@ def pkcs1_pad(m, mod_len):
 	parts = ['\x00\x02']
 
 	#all remaining padding (except last byte) is random nonzero bytes
-	rand = random.SystemRandom()
 	parts.extend([chr(rand.randrange(1, 256)) for _ in range(pad_len)])
 
 	#padding ends with 00
