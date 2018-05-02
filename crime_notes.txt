@@ -1,0 +1,34 @@
+#Dealing With Huffman Coding
+##Two Tries
+padding = genRandomPadding()
+'https://victim.com/?secret=' + known + guess + padding
+'https://victim.com/?secret=' + known + padding + guess
+
+Should have same size after huffman encoding because both have same characters
+different size => must be because of LZ77
+
+ex:
+'https://victim.com/?secret=52427{}{}{}{}{}' and
+'https://victim.com/?secret=5242{}{}{}{}{}7'
+
+##Character Set Pool
+
+for guess in alphabet
+	alphabet_with_guess = ''.join(sorted(list(set(alphabet) - {guess})))
+
+'https://victim.com/?secret=' + known + guess + padding + alphabet_with_guess
+
+Character frequencies the same for each request => differences in size should be from LZ77
+
+alphabet = string.digits
+Guess 7: 'https://victim.com/?secret=52427{}{}{}{}{}012345689'
+Guess 8: 'https://victim.com/?secret=52428{}{}{}{}{}012345679'
+
+
+#Conflict Recovery
+
+-make guesses 2 characters at a time
+Pros: reliable, cons: expensive
+
+Secret could compress well against itself ==> :(
+	Look at compression ratios of guesses to identify this
